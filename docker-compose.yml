@@ -1,0 +1,38 @@
+
+services:
+
+  db:
+    image: postgres
+    container_name: db-container
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=asd
+      - POSTGRES_DB=postgres
+    ports:
+      - "5434:5432"
+    networks: 
+      - project-network
+    volumes:
+      - project-volume:/var/lib/postgresql/data
+
+  app:
+    image: 'project-image:latest'
+    build:
+      context: .
+    container_name: app-container
+    depends_on:
+      - db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=asd
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db-container:5432/postgres
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=asd
+    ports:
+      - "8085:8080"
+    networks: 
+      - project-network
+volumes:
+  project-volume:
+networks:
+  project-network:
