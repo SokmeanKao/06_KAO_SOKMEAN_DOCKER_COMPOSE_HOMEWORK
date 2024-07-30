@@ -1,38 +1,84 @@
-
 services:
-
+  # Database 01: Main PostgreSQL database
   db:
-    image: postgres
-    container_name: db-container
+    image: postgres # Use the official PostgreSQL image
+    container_name: db-container # Name the container "db-container"
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=asd
-      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres # Set the PostgreSQL user to "postgres"
+      - POSTGRES_PASSWORD=asd # Set the PostgreSQL password to "asd"
+      - POSTGRES_DB=postgres # Set the PostgreSQL database name to "postgres"
     ports:
-      - "5434:5432"
-    networks: 
-      - project-network
+      - "5437:5432" # Map host port 5437 to container port 5432
+    networks:
+      - project-network # Connect the container to "project-network"
     volumes:
-      - project-volume:/var/lib/postgresql/data
+      - project-volume:/var/lib/postgresql/data # Persist data in the "project-volume"
 
-  app:
-    image: 'project-image:latest'
-    build:
-      context: .
-    container_name: app-container
-    depends_on:
-      - db
+  # Database 02: PostgreSQL database for Keycloak
+  db2:
+    image: postgres # Use the official PostgreSQL image
+    container_name: db-keycloak # Name the container "db-keycloak"
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=asd
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://db-container:5432/postgres
-      - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=asd
+      - POSTGRES_USER=postgres # Set the PostgreSQL user to "postgres"
+      - POSTGRES_PASSWORD=asd # Set the PostgreSQL password to "asd"
+      - POSTGRES_DB=postgres # Set the PostgreSQL database name to "postgres"
     ports:
-      - "8085:8080"
-    networks: 
-      - project-network
+      - "5434:5432" # Map host port 5434 to container port 5432
+    networks:
+      - project-network # Connect the container to "project-network"
+    volumes:
+      - keycloak_volume:/var/lib/postgresql/data # Persist data in the "keycloak_volume"
+
+  # Spring Project: Main application
+  app:
+    image: "project-image:latest" # Use the custom project image
+    build:
+      context: . # Build the image from the current directory
+    container_name: app-container # Name the container "app-container"
+    depends_on:
+      - db # Ensure the "db" service starts before this service
+    environment:
+      - POSTGRES_USER=postgres # Set the PostgreSQL user to "postgres"
+      - POSTGRES_PASSWORD=asd # Set the PostgreSQL password to "asd"
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db-container:5432/postgres # Set the database URL for Spring
+      - SPRING_DATASOURCE_USERNAME=postgres # Set the datasource username for Spring
+      - SPRING_DATASOURCE_PASSWORD=asd # Set the datasource password for Spring
+    ports:
+      - "8085:8080" # Map host port 8085 to container port 8080
+    networks:
+      - project-network # Connect the container to "project-network"
+
+  # Keycloak: Identity and Access Management
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0.6 # Use the Keycloak image version 23.0.6
+    container_name: keycloak # Name the container "keycloak"
+    ports:
+      - "8080:8080" # Map host port 8080 to container port 8080
+      - "8443:8443" # Map host port 8443 to container port 8443
+    volumes: 
+      - keycloak_volume:/var/lib/postgresql/data # Persist data in the "keycloak_volume"
+    networks:
+      - project-network # Connect the container to "project-network"
+    environment:
+      - KEYCLOAK_ADMIN=admin # Set the Keycloak admin username to "admin"
+      - KEYCLOAK_ADMIN_PASSWORD=asd # Set the Keycloak admin password to "asd"
+    command: ["start-dev"] # Start Keycloak in development mode
+    restart: unless-stopped # Restart the container unless it is explicitly stopped    
+
+  # RabbitMQ: Message broker
+  rabbitmq:
+    image: rabbitmq:management # Use the RabbitMQ image with management plugins
+    container_name: rabbitmq-container # Name the container "rabbitmq-container"
+    ports:
+      - "5672:5672" # Map host port 5672 to container port 5672 (AMQP)
+      - "15672:15672" # Map host port 15672 to container port 15672 (Management UI)
+    environment:
+      - "RABBITMQ_DEFAULT_USER=user" # Set the default RabbitMQ user to "user"
+      - "RABBITMQ_DEFAULT_PASS=123" # Set the default RabbitMQ password to "123"
+
 volumes:
-  project-volume:
+  project-volume: # Define the volume for the main PostgreSQL database
+  keycloak_volume: # Define the volume for the Keycloak PostgreSQL database
+
 networks:
-  project-network:
+  project-network: # Define the network for the project
